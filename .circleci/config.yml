@@ -18,4 +18,4 @@ jobs:
     steps:
       - greeting/greet:
           to: "CircleCI"  # パラメータを指定（省略可能、デフォルトは"World"）
-          node_version: "20"  # Node.jsバージョン指定（省略可能、デフォルトは"20"）
+          node_version: "18"  # Node.jsバージョン指定（省略可能、デフォルトは"20"）
