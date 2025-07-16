@@ -2,7 +2,7 @@ version: 2.1
 
 # orbの読み込み
 orbs:
-  greeting: testorb/testorb@0.0.2  # 実際のnamespaceとorb名に置き換えてください
+  greeting: testorb/testorb@0.0.3  # 実際のnamespaceとorb名に置き換えてください
 
 # ワークフローの定義
 workflows:
@@ -18,3 +18,4 @@ jobs:
     steps:
       - greeting/greet:
           to: "CircleCI"  # パラメータを指定（省略可能、デフォルトは"World"）
+          node_version: "18"  # Node.jsバージョン指定（省略可能、デフォルトは"20"）
