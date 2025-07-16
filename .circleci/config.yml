@@ -1,32 +1,20 @@
 version: 2.1
 
-# パラメータの定義
-parameters:
-  node_version:
-    type: string
-    default: "18.17"
-
-# ジョブの定義
-jobs:
-  install_node:
-    parameters:
-      node_version:
-        type: string
-        default: "18.17"
-    docker:
-      - image: cimg/node:<< parameters.node_version >>
-    steps:
-      - run:
-          name: "Node.js確認"
-          command: |
-            echo "Node.jsバージョン:"
-            node --version
-            echo "npmバージョン:"
-            npm --version
+# orbの読み込み
+orbs:
+  greeting: your-namespace/your-orb@1.0.0  # 実際のnamespaceとorb名に置き換えてください
 
 # ワークフローの定義
 workflows:
-  node_workflow:
+  test-greeting:
     jobs:
-      - install_node:
-          node_version: << pipeline.parameters.node_version >>
+      - greet-job
+
+# ジョブの定義
+jobs:
+  greet-job:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - greeting/greet:
+          to: "CircleCI"  # パラメータを指定（省略可能、デフォルトは"World"）
