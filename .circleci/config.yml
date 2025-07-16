@@ -2,7 +2,7 @@ version: 2.1
 
 # orbの読み込み
 orbs:
-  greeting: your-namespace/your-orb@1.0.0  # 実際のnamespaceとorb名に置き換えてください
+  greeting: testorb/testorb@0.0.1  # 実際のnamespaceとorb名に置き換えてください
 
 # ワークフローの定義
 workflows:
