@@ -29,4 +29,4 @@ workflows:
   test:
     jobs:
       - greet-job:
-          override-with: greeting/python
+          override-with: greeting/greet
