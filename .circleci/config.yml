@@ -9,10 +9,24 @@ jobs:
       - image: cimg/base:stable
     steps:
       - run:
-          command: 'echo "Local fallback: Hello World"'
+          name: Install Python
+          command: |
+            # Pythonのインストール（Ubuntu/Debian系）
+            sudo apt-get update
+            sudo apt-get install -y python3 python3-pip
+            
+            # インストール確認
+            echo "Python version: $(python3 --version)"
+            echo "pip version: $(pip3 --version)"
+      - run:
+          name: Fallback greeting with Python
+          command: |
+            echo "Local fallback: Hello World"
+            echo "Python is now installed!"
+            python3 --version
 
 workflows:
   test:
     jobs:
       - greet-job:
-          override-with: greeting/greet2
+          override-with: greeting/python
