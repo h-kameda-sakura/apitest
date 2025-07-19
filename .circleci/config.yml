@@ -15,4 +15,4 @@ workflows:
   test:
     jobs:
       - greet-job:
-          override-with: greeting/greet
+          override-with: greeting/greet2
