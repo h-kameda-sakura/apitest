@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  greeting: testorb/testorb@1.1.0
+  greeting: testorb/testorb@2.0.0
 
 jobs:
   greet-job:
