@@ -1,21 +1,32 @@
 version: 2.1
 
-# orbの読み込み
 orbs:
-  greeting: testorb/testorb@0.0.3  # 実際のnamespaceとorb名に置き換えてください
+  greeting: testorb/testorb@1.1.0
 
-# ワークフローの定義
-workflows:
-  test-greeting:
-    jobs:
-      - greet-job
+commands:
+  greet:
+    override-with: greeting/greet
+    parameters:
+      to:
+        type: string
+        default: "World"
+      node_version:
+        type: string
+        default: "20"
+    steps:
+      - run: echo "OVERRIDE: Hello << parameters.to >>"
+      - run: echo "Node.js << parameters.node_version >> override test"
 
-# ジョブの定義
 jobs:
-  greet-job:
+  test-job:
     docker:
       - image: cimg/base:stable
     steps:
-      - greeting/greet:
-          to: "CircleCI"  # パラメータを指定（省略可能、デフォルトは"World"）
-          node_version: "18"  # Node.jsバージョン指定（省略可能、デフォルトは"20"）
+      - greet:
+          to: "Override Test"
+          node_version: "18"
+
+workflows:
+  test:
+    jobs:
+      - test-job
