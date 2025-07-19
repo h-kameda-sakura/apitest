@@ -15,9 +15,9 @@ commands:
         default: "20"
     steps:
       - run:
-          command: echo "OVERRIDE: Hello << parameters.to >>"
+          command: 'echo "OVERRIDE: Hello << parameters.to >>"'
       - run:
-          command: echo "Node.js << parameters.node_version >> override test"
+          command: 'echo "Node.js << parameters.node_version >> override test"'
 
 jobs:
   test-job:
