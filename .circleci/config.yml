@@ -3,32 +3,16 @@ version: 2.1
 orbs:
   greeting: testorb/testorb@1.1.0
 
-commands:
-  greet:
-    override-with: greeting/greet
-    parameters:
-      to:
-        type: string
-        default: "World"
-      node_version:
-        type: string
-        default: "20"
-    steps:
-      - run:
-          command: 'echo "OVERRIDE: Hello << parameters.to >>"'
-      - run:
-          command: 'echo "Node.js << parameters.node_version >> override test"'
-
 jobs:
-  test-job:
+  greet-job:
     docker:
       - image: cimg/base:stable
     steps:
-      - greet:
-          to: "Override Test"
-          node_version: "18"
+      - run:
+          command: 'echo "Local fallback: Hello World"'
 
 workflows:
   test:
     jobs:
-      - test-job
+      - greet-job:
+          override-with: greeting/greet
