@@ -1,65 +1,89 @@
-- run:
-    name: Deploy & start node app
-    command: |
-      ssh -p 22 ubuntu@27.133.130.141 'bash -exo pipefail -c "
-        set -e
-        APP_DIR=/home/ubuntu/nodeapp
-        REPO_URL=git@github.com:h-kameda-sakura/apitest.git   # ← 実リポジトリに置換
+version: 2.1
 
-        # 事前準備: git, curl, known_hosts
-        if command -v apt-get >/dev/null 2>&1; then
-          sudo apt-get update -y
-          sudo apt-get install -y git curl
-        elif command -v dnf >/dev/null 2>&1; then
-          sudo dnf install -y git curl
-        elif command -v yum >/dev/null 2>&1; then
-          sudo yum install -y git curl
-        elif command -v zypper >/dev/null 2>&1; then
-          sudo zypper -n install git curl
-        fi
-        mkdir -p ~/.ssh
-        ssh-keyscan github.com >> ~/.ssh/known_hosts || true
+jobs:
+  deploy-nodeapp:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
 
-        # Node.js（未インストール時のみ）
-        if ! command -v node >/dev/null 2>&1; then
-          if command -v apt-get >/dev/null 2>&1; then
-            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-            sudo apt-get install -y nodejs
-          elif command -v dnf >/dev/null 2>&1; then
-            curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-            sudo dnf install -y nodejs
-          elif command -v yum >/dev/null 2>&1; then
-            curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-            sudo yum install -y nodejs
-          elif command -v zypper >/dev/null 2>&1; then
-            curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-            sudo zypper -n install nodejs
-          else
-            echo Unsupported OS >&2; exit 1
-          fi
-        fi
+      - add_ssh_keys:
+          fingerprints:
+            - "SHA256:DvKOKDhqcEfxkek9slpnuS4mDrXaNRPC2eMjq1oXNBk"
 
-        # 初回クローン or 更新
-        if [ -d \"${APP_DIR}/.git\" ]; then
-          git -C \"${APP_DIR}\" fetch --all
-          git -C \"${APP_DIR}\" checkout main
-          git -C \"${APP_DIR}\" pull --ff-only
-        else
-          sudo mkdir -p \"${APP_DIR}\"
-          sudo chown -R ubuntu:ubuntu \"${APP_DIR}\"
-          git clone \"${REPO_URL}\" \"${APP_DIR}\"
-        fi
+      - run:
+          name: Register known_hosts
+          command: |
+            mkdir -p ~/.ssh
+            ssh-keyscan -p 22 27.133.130.141 >> ~/.ssh/known_hosts
 
-        cd \"${APP_DIR}\"
-        npm ci || npm install
+      - run:
+          name: Deploy & start node app
+          command: |
+            ssh -p 22 ubuntu@27.133.130.141 'bash -exo pipefail -c "
+              set -e
+              APP_DIR=/home/ubuntu/nodeapp
+              REPO_URL=git@github.com:h-kameda-sakura/apitest.git
 
-        # ユニットファイルをリポジトリ同梱として設置（nodeapp.service をリポジトリに置いてください）
-        if [ -f nodeapp.service ]; then
-          sudo install -m 0644 nodeapp.service /etc/systemd/system/nodeapp.service
-          sudo systemctl daemon-reload
-          sudo systemctl enable nodeapp
-        fi
+              # 必要パッケージと GitHub known_hosts
+              if command -v apt-get >/dev/null 2>&1; then
+                sudo apt-get update -y
+                sudo apt-get install -y git curl
+              elif command -v dnf >/dev/null 2>&1; then
+                sudo dnf install -y git curl
+              elif command -v yum >/dev/null 2>&1; then
+                sudo yum install -y git curl
+              elif command -v zypper >/dev/null 2>&1; then
+                sudo zypper -n install git curl
+              fi
+              mkdir -p ~/.ssh
+              ssh-keyscan github.com >> ~/.ssh/known_hosts || true
 
-        sudo systemctl restart nodeapp
-        sudo systemctl status nodeapp --no-pager
-      "'
+              # Node.js（未インストール時のみ）
+              if ! command -v node >/dev/null 2>&1; then
+                if command -v apt-get >/dev/null 2>&1; then
+                  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                  sudo apt-get install -y nodejs
+                elif command -v dnf >/dev/null 2>&1; then
+                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                  sudo dnf install -y nodejs
+                elif command -v yum >/dev/null 2>&1; then
+                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                  sudo yum install -y nodejs
+                elif command -v zypper >/dev/null 2>&1; then
+                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                  sudo zypper -n install nodejs
+                else
+                  echo Unsupported OS >&2; exit 1
+                fi
+              fi
+
+              # 初回クローン or 更新
+              if [ -d \"${APP_DIR}/.git\" ]; then
+                git -C \"${APP_DIR}\" fetch --all
+                git -C \"${APP_DIR}\" checkout main
+                git -C \"${APP_DIR}\" pull --ff-only
+              else
+                sudo mkdir -p \"${APP_DIR}\"
+                sudo chown -R ubuntu:ubuntu \"${APP_DIR}\"
+                git clone \"${REPO_URL}\" \"${APP_DIR}\"
+              fi
+
+              cd \"${APP_DIR}\"
+              npm ci || npm install
+
+              # ユニットファイルをリポジトリ同梱として設置（nodeapp.service を置いておく）
+              if [ -f nodeapp.service ]; then
+                sudo install -m 0644 nodeapp.service /etc/systemd/system/nodeapp.service
+                sudo systemctl daemon-reload
+                sudo systemctl enable nodeapp
+              fi
+
+              sudo systemctl restart nodeapp
+              sudo systemctl status nodeapp --no-pager
+            "'
+
+workflows:
+  deploy:
+    jobs:
+      - deploy-nodeapp
