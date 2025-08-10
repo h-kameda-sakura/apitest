@@ -10,20 +10,20 @@ jobs:
       # CircleCIに登録したSSH鍵を使用（Fingerprintで指定）
       - add_ssh_keys:
           fingerprints:
-            - "SHA256:DvKOKDhqcEfxkek9slpnuS4mDrXaNRPC2eMjq1oXNBk"
+            - "SHA256:xxKOKDhqcEfxkek9slpnuS4mDrXaNRPC2eMjq1oXNBk"
 
       # デプロイ先サーバの known_hosts 登録
       - run:
           name: Register known_hosts
           command: |
             mkdir -p ~/.ssh
-            ssh-keyscan -p 22 27.133.130.141 >> ~/.ssh/known_hosts
+            ssh-keyscan -p 22 27.133.130.xxx >> ~/.ssh/known_hosts
 
       # Nodeアプリのデプロイ＆起動
       - run:
           name: Deploy & start node app
           command: |
-            ssh -p 22 ubuntu@27.133.130.141 "
+            ssh -p 22 ubuntu@27.133.130.xxx "
               set -eo pipefail
 
               APP_DIR=/home/ubuntu/nodeapp
