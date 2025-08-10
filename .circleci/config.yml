@@ -43,7 +43,7 @@ jobs:
                   curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
                   sudo zypper -n install nodejs
                 else
-                  echo 'Unsupported OS' >&2; exit 1
+                  echo Unsupported OS >&2; exit 1
                 fi
               fi
 
@@ -61,23 +61,23 @@ jobs:
 
               # systemd ユニット（初回のみ作成）
               if [ ! -f /etc/systemd/system/nodeapp.service ]; then
-                sudo bash -c 'cat > /etc/systemd/system/nodeapp.service <<\"EOF\"
-[Unit]
-Description=Node.js App (port 8080)
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/nodeapp
-Environment=PORT=8080
-ExecStart=/usr/bin/node server.js
-Restart=on-failure
-RestartSec=3
-
-[Install]
-WantedBy=multi-user.target
-EOF'
+                sudo bash -c \"printf '%s\\n' \
+                  '[Unit]' \
+                  'Description=Node.js App (port 8080)' \
+                  'After=network.target' \
+                  '' \
+                  '[Service]' \
+                  'Type=simple' \
+                  'User=ubuntu' \
+                  'WorkingDirectory=/home/ubuntu/nodeapp' \
+                  'Environment=PORT=8080' \
+                  'ExecStart=/usr/bin/node server.js' \
+                  'Restart=on-failure' \
+                  'RestartSec=3' \
+                  '' \
+                  '[Install]' \
+                  'WantedBy=multi-user.target' \
+                  > /etc/systemd/system/nodeapp.service\"
                 sudo systemctl daemon-reload
                 sudo systemctl enable nodeapp
               fi
