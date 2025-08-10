@@ -22,7 +22,7 @@ jobs:
           command: |
             ssh -p 22 ubuntu@27.133.130.141 'bash -euxo pipefail -c "
               APP_DIR=/home/ubuntu/nodeapp
-              REPO_URL=git@github.com:<YOUR_GITHUB_USER>/<YOUR_REPO>.git
+              REPO_URL=harunobukameda@gmail.com:h-kameda-sakura/apitest.git
 
               # Node.js インストール（未インストール時のみ）
               if ! command -v node >/dev/null 2>&1; then
