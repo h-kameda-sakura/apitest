@@ -1,7 +1,7 @@
 version: 2.1
 
 jobs:
-  deploy-nginx:
+  install-node:
     docker:
       - image: cimg/base:stable
     steps:
@@ -10,7 +10,7 @@ jobs:
       # CircleCIに登録したSSH鍵を使用（Fingerprintで指定）
       - add_ssh_keys:
           fingerprints:
-            - "SHA256:DvKOKDhqcEfxkek9sIpnuS4mDrXaNRPC2eMjq1oXNBk"
+            - "SHA256:DvKOKDhqcEfxkek9slpnuS4mDrXaNRPC2eMjq1oXNBk"
 
       # known_hosts 登録
       - run:
@@ -19,41 +19,36 @@ jobs:
             mkdir -p ~/.ssh
             ssh-keyscan -p 22 27.133.130.141 >> ~/.ssh/known_hosts
 
-      # Nginx インストールと起動（OSを自動判別）
+      # Node.js インストール
       - run:
-          name: Install & start Nginx
+          name: Install Node.js
           command: |
             ssh -p 22 ubuntu@27.133.130.141 'bash -euxo pipefail -c "
               if command -v apt-get >/dev/null 2>&1; then
                 sudo apt-get update -y
-                sudo DEBIAN_FRONTEND=noninteractive apt-get install -y nginx
+                curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                sudo apt-get install -y nodejs
               elif command -v dnf >/dev/null 2>&1; then
-                sudo dnf install -y nginx
+                sudo dnf install -y curl
+                curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                sudo dnf install -y nodejs
               elif command -v yum >/dev/null 2>&1; then
-                sudo yum install -y epel-release || true
-                sudo yum install -y nginx
+                sudo yum install -y curl
+                curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                sudo yum install -y nodejs
               elif command -v zypper >/dev/null 2>&1; then
-                sudo zypper -n refresh
-                sudo zypper -n install nginx
+                sudo zypper -n install curl
+                curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                sudo zypper -n install nodejs
               else
                 echo \"Unsupported OS\" >&2
                 exit 1
               fi
-              if command -v systemctl >/dev/null 2>&1; then
-                sudo systemctl enable --now nginx
-                sudo systemctl status nginx --no-pager
-              else
-                (sudo service nginx start || sudo /etc/init.d/nginx start) || true
-              fi
+              node -v
+              npm -v
             "'
-
-      # Nginx応答確認
-      - run:
-          name: Check Nginx response
-          command: |
-            curl -I http://27.133.130.141 || true
 
 workflows:
   deploy:
     jobs:
-      - deploy-nginx
+      - install-node
