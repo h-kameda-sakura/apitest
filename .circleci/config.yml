@@ -1,54 +1,92 @@
 version: 2.1
 
 jobs:
-  install-node:
+  deploy-nodeapp:
     docker:
       - image: cimg/base:stable
     steps:
       - checkout
 
-      # CircleCIに登録したSSH鍵を使用（Fingerprintで指定）
       - add_ssh_keys:
           fingerprints:
             - "SHA256:DvKOKDhqcEfxkek9slpnuS4mDrXaNRPC2eMjq1oXNBk"
 
-      # known_hosts 登録
       - run:
           name: Register known_hosts
           command: |
             mkdir -p ~/.ssh
             ssh-keyscan -p 22 27.133.130.141 >> ~/.ssh/known_hosts
 
-      # Node.js インストール
       - run:
-          name: Install Node.js
+          name: Deploy & start node app
           command: |
             ssh -p 22 ubuntu@27.133.130.141 'bash -euxo pipefail -c "
-              if command -v apt-get >/dev/null 2>&1; then
-                sudo apt-get update -y
-                curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-                sudo apt-get install -y nodejs
-              elif command -v dnf >/dev/null 2>&1; then
-                sudo dnf install -y curl
-                curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-                sudo dnf install -y nodejs
-              elif command -v yum >/dev/null 2>&1; then
-                sudo yum install -y curl
-                curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-                sudo yum install -y nodejs
-              elif command -v zypper >/dev/null 2>&1; then
-                sudo zypper -n install curl
-                curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-                sudo zypper -n install nodejs
-              else
-                echo \"Unsupported OS\" >&2
-                exit 1
+              APP_DIR=/home/ubuntu/nodeapp
+              REPO_URL=git@github.com:<YOUR_GITHUB_USER>/<YOUR_REPO>.git
+
+              # Node.js インストール（未インストール時のみ）
+              if ! command -v node >/dev/null 2>&1; then
+                if command -v apt-get >/dev/null 2>&1; then
+                  sudo apt-get update -y
+                  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                  sudo apt-get install -y nodejs
+                elif command -v dnf >/dev/null 2>&1; then
+                  sudo dnf install -y curl
+                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                  sudo dnf install -y nodejs
+                elif command -v yum >/dev/null 2>&1; then
+                  sudo yum install -y curl
+                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                  sudo yum install -y nodejs
+                elif command -v zypper >/dev/null 2>&1; then
+                  sudo zypper -n install curl
+                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+                  sudo zypper -n install nodejs
+                else
+                  echo 'Unsupported OS' >&2; exit 1
+                fi
               fi
-              node -v
-              npm -v
+
+              # 初回クローン or 更新
+              if [ -d \"${APP_DIR}/.git\" ]; then
+                git -C \"${APP_DIR}\" fetch --all
+                git -C \"${APP_DIR}\" checkout main
+                git -C \"${APP_DIR}\" pull --ff-only
+              else
+                git clone \"${REPO_URL}\" \"${APP_DIR}\"
+              fi
+
+              cd \"${APP_DIR}\"
+              npm ci || npm install
+
+              # systemd ユニット（初回のみ作成）
+              if [ ! -f /etc/systemd/system/nodeapp.service ]; then
+                sudo tee /etc/systemd/system/nodeapp.service >/dev/null <<'EOF'
+[Unit]
+Description=Node.js App (port 8080)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/nodeapp
+Environment=PORT=8080
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+                sudo systemctl daemon-reload
+                sudo systemctl enable nodeapp
+              fi
+
+              sudo systemctl restart nodeapp
+              sudo systemctl status nodeapp --no-pager
             "'
 
 workflows:
   deploy:
     jobs:
-      - install-node
+      - deploy-nodeapp
