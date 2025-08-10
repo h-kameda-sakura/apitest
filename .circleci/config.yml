@@ -18,9 +18,9 @@ jobs:
             ssh-keyscan -p 22 27.133.130.141 >> ~/.ssh/known_hosts
 
       - run:
-          name: Deploy & start node app (heredoc)
+          name: Deploy & start node app (pipe script to ssh)
           command: |
-            ssh -p 22 ubuntu@27.133.130.141 'bash -s' <<'REMOTE_SCRIPT'
+            cat <<'EOF' | ssh -p 22 ubuntu@27.133.130.141 'bash -s'
             set -eo pipefail
 
             APP_DIR=/home/ubuntu/nodeapp
@@ -38,7 +38,6 @@ jobs:
               sudo zypper -n install git curl
             fi
 
-            # GitHub known_hosts
             mkdir -p ~/.ssh
             ssh-keyscan github.com >> ~/.ssh/known_hosts || true
 
@@ -75,7 +74,6 @@ jobs:
             cd "$APP_DIR"
             npm ci || npm install
 
-            # リポジトリに nodeapp.service がある前提で設置
             if [ -f nodeapp.service ]; then
               sudo install -m 0644 nodeapp.service /etc/systemd/system/nodeapp.service
               sudo systemctl daemon-reload
@@ -84,7 +82,7 @@ jobs:
 
             sudo systemctl restart nodeapp || sudo systemctl start nodeapp
             sudo systemctl status nodeapp --no-pager || true
-            REMOTE_SCRIPT
+            EOF
 
 workflows:
   deploy:
