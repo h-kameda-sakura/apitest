@@ -31,10 +31,7 @@ jobs:
 
               # ===== apt/dpkg ロック待ち（Ubuntu/Debian向け） =====
               wait_for_apt_lock() {
-                # 未完了の dpkg 設定を先に解消（あれば）
                 sudo dpkg --configure -a >/dev/null 2>&1 || true
-
-                # フロントロック/リストロックの解放待ち
                 while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
                    || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
                   echo '[apt] Waiting for lock to be released...'
@@ -109,19 +106,19 @@ jobs:
               sudo systemctl status nodeapp --no-pager || true
             "
 
-      # 🔍 HTTPヘルスチェック（一度だけ実行）
+      # 🔍 HTTPテスト（/test を叩く）
       - run:
-          name: Health check http://163.43.218.53:8080/
+          name: Test http://163.43.218.53:8080/test
           command: |
-            URL="http://163.43.218.53:8080/"
-            echo "Waiting 3 seconds before health check..."
+            URL="http://163.43.218.53:8080/test"
+            echo "Waiting 3 seconds before test..."
             sleep 3
             code=$(curl -fsS -o /dev/null -w "%{http_code}" --connect-timeout 3 "$URL" || true)
             if [ "$code" = "200" ]; then
-              echo "OK: $URL returned 200"
+              echo "OK: $URL/test returned 200"
               exit 0
             else
-              echo "Health check failed for $URL (status:$code)" >&2
+              echo "Test failed for $URL (status:$code)" >&2
               exit 1
             fi
 
