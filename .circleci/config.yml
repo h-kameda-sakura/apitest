@@ -17,13 +17,13 @@ jobs:
           name: Register known_hosts
           command: |
             mkdir -p ~/.ssh
-            ssh-keyscan -p 22 27.133.130.xxx >> ~/.ssh/known_hosts
+            ssh-keyscan -p 163.43.218.53 >> ~/.ssh/known_hosts
 
       # Nodeアプリのデプロイ＆起動
       - run:
           name: Deploy & start node app
           command: |
-            ssh -p 22 ubuntu@27.133.130.xxx "
+            ssh -p 22 ubuntu@163.43.218.53 "
               set -eo pipefail
 
               APP_DIR=/home/ubuntu/nodeapp
