@@ -29,7 +29,6 @@ jobs:
               APP_DIR=/home/ubuntu/nodeapp
               REPO_URL=https://github.com/h-kameda-sakura/apitest.git
 
-              # ===== apt/dpkg ロック待ち（Ubuntu/Debian向け） =====
               wait_for_apt_lock() {
                 sudo dpkg --configure -a >/dev/null 2>&1 || true
                 while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
@@ -39,7 +38,6 @@ jobs:
                 done
               }
 
-              # 必要パッケージ
               if command -v apt-get >/dev/null 2>&1; then
                 export DEBIAN_FRONTEND=noninteractive
                 wait_for_apt_lock
@@ -54,11 +52,9 @@ jobs:
                 sudo zypper -n install git curl
               fi
 
-              # GitHubをknown_hostsに追加
               mkdir -p ~/.ssh
               ssh-keyscan github.com >> ~/.ssh/known_hosts || true
 
-              # Node.js（未インストール時のみ）
               if ! command -v node >/dev/null 2>&1; then
                 if command -v apt-get >/dev/null 2>&1; then
                   export DEBIAN_FRONTEND=noninteractive
@@ -80,7 +76,6 @@ jobs:
                 fi
               fi
 
-              # 初回クローン or 更新
               if [ -d \"\$APP_DIR/.git\" ]; then
                 git -C \"\$APP_DIR\" fetch --all
                 git -C \"\$APP_DIR\" checkout main
@@ -94,14 +89,12 @@ jobs:
               cd \"\$APP_DIR\"
               npm ci || npm install
 
-              # ユニットファイルを設置（リポジトリにnodeapp.serviceがある前提）
               if [ -f nodeapp.service ]; then
                 sudo install -m 0644 nodeapp.service /etc/systemd/system/nodeapp.service
                 sudo systemctl daemon-reload
                 sudo systemctl enable nodeapp
               fi
 
-              # サービス再起動
               sudo systemctl restart nodeapp || sudo systemctl start nodeapp
               sudo systemctl status nodeapp --no-pager || true
             "
@@ -126,3 +119,5 @@ workflows:
   deploy:
     jobs:
       - deploy-nodeapp
+    # ここで自動リトライ回数を指定
+    max_auto_reruns: 2
