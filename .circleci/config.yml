@@ -90,6 +90,22 @@ jobs:
               sudo systemctl status nodeapp --no-pager || true
             "
 
+      # 🔍 HTTPヘルスチェック（一度だけ実行）
+      - run:
+          name: Health check http://163.43.218.53:8080/
+          command: |
+            URL="http://163.43.218.53:8080/"
+            echo "Waiting 3 seconds before health check..."
+            sleep 3
+            code=$(curl -fsS -o /dev/null -w "%{http_code}" --connect-timeout 3 "$URL" || true)
+            if [ "$code" = "200" ]; then
+              echo "OK: $URL returned 200"
+              exit 0
+            else
+              echo "Health check failed for $URL (status:$code)" >&2
+              exit 1
+            fi
+
 workflows:
   deploy:
     jobs:
