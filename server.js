@@ -1,29 +1,12 @@
-const express = require('express');
-const app = express();
+// server.js
+const http = require('http');
 
-const PORT = process.env.PORT || 8080;
-
-app.get('/', (_req, res) => {
-  res.status(200).send('hello from apitest');
+const port = process.env.PORT || 8080;
+const server = http.createServer((req, res) => {
+  res.writeHead(200, {'Content-Type':'text/plain; charset=utf-8'});
+  res.end('Hello from Node.js on port ' + port + '\n');
 });
 
-// 50%で失敗するテスト用エンドポイント
-app.get('/test', (req, res) => {
-  const fail = Math.random() < 0.5; // 50%
-  res.set({
-    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-    Pragma: 'no-cache',
-    Expires: '0',
-  });
-  if (fail) {
-    console.error('[TEST] failing intentionally');
-    return res.status(500).json({ ok: false, message: 'intentional failure for test' });
-  } else {
-    console.log('[TEST] success');
-    return res.status(200).json({ ok: true, message: 'success' });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server started on port ${PORT}`);
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Server running at http://0.0.0.0:${port}/`);
 });
