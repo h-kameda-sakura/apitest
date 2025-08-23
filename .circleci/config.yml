@@ -29,9 +29,25 @@ jobs:
               APP_DIR=/home/ubuntu/nodeapp
               REPO_URL=https://github.com/h-kameda-sakura/apitest.git
 
+              # ===== apt/dpkg ロック待ち（Ubuntu/Debian向け） =====
+              wait_for_apt_lock() {
+                # 未完了の dpkg 設定を先に解消（あれば）
+                sudo dpkg --configure -a >/dev/null 2>&1 || true
+
+                # フロントロック/リストロックの解放待ち
+                while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
+                   || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
+                  echo '[apt] Waiting for lock to be released...'
+                  sleep 3
+                done
+              }
+
               # 必要パッケージ
               if command -v apt-get >/dev/null 2>&1; then
+                export DEBIAN_FRONTEND=noninteractive
+                wait_for_apt_lock
                 sudo apt-get update -y
+                wait_for_apt_lock
                 sudo apt-get install -y git curl
               elif command -v dnf >/dev/null 2>&1; then
                 sudo dnf install -y git curl
@@ -48,7 +64,10 @@ jobs:
               # Node.js（未インストール時のみ）
               if ! command -v node >/dev/null 2>&1; then
                 if command -v apt-get >/dev/null 2>&1; then
+                  export DEBIAN_FRONTEND=noninteractive
+                  wait_for_apt_lock
                   curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+                  wait_for_apt_lock
                   sudo apt-get install -y nodejs
                 elif command -v dnf >/dev/null 2>&1; then
                   curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
