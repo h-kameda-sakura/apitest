@@ -1,123 +1,21 @@
+# .circleci/config.yml
 version: 2.1
 
+orbs:
+  # URL Orb を生(なま)で参照します（ブランチ名は main を想定）
+  greeting: https://raw.githubusercontent.com/h-kameda-sakura/apitest/main/orbs/greeting.yml
+
 jobs:
-  deploy-nodeapp:
+  demo:
     docker:
       - image: cimg/base:stable
     steps:
       - checkout
-
-      # CircleCIに登録したSSH鍵を使用（Fingerprintで指定）
-      - add_ssh_keys:
-          fingerprints:
-            - "SHA256:xxKOKDhqcEfxkek9slpnuS4mDrXaNRPC2eMjq1oXNBk"
-
-      # デプロイ先サーバの known_hosts 登録
-      - run:
-          name: Register known_hosts
-          command: |
-            mkdir -p ~/.ssh
-            ssh-keyscan 163.43.218.53 >> ~/.ssh/known_hosts
-
-      # Nodeアプリのデプロイ＆起動
-      - run:
-          name: Deploy & start node app
-          command: |
-            ssh -p 22 ubuntu@163.43.218.53 "
-              set -eo pipefail
-
-              APP_DIR=/home/ubuntu/nodeapp
-              REPO_URL=https://github.com/h-kameda-sakura/apitest.git
-
-              wait_for_apt_lock() {
-                sudo dpkg --configure -a >/dev/null 2>&1 || true
-                while sudo fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 \
-                   || sudo fuser /var/lib/apt/lists/lock >/dev/null 2>&1; do
-                  echo '[apt] Waiting for lock to be released...'
-                  sleep 3
-                done
-              }
-
-              if command -v apt-get >/dev/null 2>&1; then
-                export DEBIAN_FRONTEND=noninteractive
-                wait_for_apt_lock
-                sudo apt-get update -y
-                wait_for_apt_lock
-                sudo apt-get install -y git curl
-              elif command -v dnf >/dev/null 2>&1; then
-                sudo dnf install -y git curl
-              elif command -v yum >/dev/null 2>&1; then
-                sudo yum install -y git curl
-              elif command -v zypper >/dev/null 2>&1; then
-                sudo zypper -n install git curl
-              fi
-
-              mkdir -p ~/.ssh
-              ssh-keyscan github.com >> ~/.ssh/known_hosts || true
-
-              if ! command -v node >/dev/null 2>&1; then
-                if command -v apt-get >/dev/null 2>&1; then
-                  export DEBIAN_FRONTEND=noninteractive
-                  wait_for_apt_lock
-                  curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-                  wait_for_apt_lock
-                  sudo apt-get install -y nodejs
-                elif command -v dnf >/dev/null 2>&1; then
-                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-                  sudo dnf install -y nodejs
-                elif command -v yum >/dev/null 2>&1; then
-                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-                  sudo yum install -y nodejs
-                elif command -v zypper >/dev/null 2>&1; then
-                  curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
-                  sudo zypper -n install nodejs
-                else
-                  echo Unsupported OS >&2; exit 1
-                fi
-              fi
-
-              if [ -d \"\$APP_DIR/.git\" ]; then
-                git -C \"\$APP_DIR\" fetch --all
-                git -C \"\$APP_DIR\" checkout main
-                git -C \"\$APP_DIR\" pull --ff-only
-              else
-                sudo mkdir -p \"\$APP_DIR\"
-                sudo chown -R ubuntu:ubuntu \"\$APP_DIR\"
-                git clone \"\$REPO_URL\" \"\$APP_DIR\"
-              fi
-
-              cd \"\$APP_DIR\"
-              npm ci || npm install
-
-              if [ -f nodeapp.service ]; then
-                sudo install -m 0644 nodeapp.service /etc/systemd/system/nodeapp.service
-                sudo systemctl daemon-reload
-                sudo systemctl enable nodeapp
-              fi
-
-              sudo systemctl restart nodeapp || sudo systemctl start nodeapp
-              sudo systemctl status nodeapp --no-pager || true
-            "
-
-      # 🔍 HTTPテスト（/test を叩く）
-      - run:
-          name: Test http://163.43.218.53:8080/test
-          command: |
-            URL="http://163.43.218.53:8080/test"
-            echo "Waiting 3 seconds before test..."
-            sleep 3
-            code=$(curl -fsS -o /dev/null -w "%{http_code}" --connect-timeout 3 "$URL" || true)
-            if [ "$code" = "200" ]; then
-              echo "OK: $URL/test returned 200"
-              exit 0
-            else
-              echo "Test failed for $URL (status:$code)" >&2
-              exit 1
-            fi
+      - greeting/greet:
+          to: "kameda-san"
+          node_version: "20"
 
 workflows:
-  deploy:
+  use-greeting:
     jobs:
-      - deploy-nodeapp
-    # ここで自動リトライ回数を指定
-    max_auto_reruns: 2
+      - demo
