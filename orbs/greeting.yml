@@ -1,0 +1,36 @@
+# orbs/greeting.yml
+version: 2.1
+description: A greeting command orb with Node.js installation
+
+commands:
+  greet:
+    description: Greet someone with a "hello" and install Node.js
+    parameters:
+      to:
+        type: string
+        default: World
+      node_version:
+        type: string
+        default: "20"
+        description: Node.js version to install
+    steps:
+      - run:
+          name: Install Node.js
+          command: |
+            # Prereqs
+            sudo apt-get update -y
+            sudo apt-get install -y curl ca-certificates
+            # Node.js (Ubuntu/Debian)
+            curl -fsSL https://deb.nodesource.com/setup_<< parameters.node_version >>.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+
+            # Verify
+            echo "Node.js version: $(node --version)"
+            echo "npm version: $(npm --version)"
+
+      - run:
+          name: Greet with Node.js
+          command: |
+            echo "Hello << parameters.to >>"
+            echo "Node.js << parameters.node_version >> is now installed!"
+            node --version
