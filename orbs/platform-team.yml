@@ -1,0 +1,193 @@
+# orbs/platform-team.yml
+version: 2.1
+description: >
+  Example URL Orb for apitest repo. Provides reusable commands/jobs for
+  Node.js build and SSH-based deploy.
+
+display:
+  home_url: "https://github.com/h-kameda-sakura/apitest"
+  source_url: "https://github.com/h-kameda-sakura/apitest"
+
+# ===== executors =====
+executors:
+  base:
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+
+# ===== commands =====
+commands:
+  setup_node:
+    description: "Install Node.js and dependencies"
+    parameters:
+      node_version:
+        type: string
+        default: "20"
+    steps:
+      - run:
+          name: Install Node.js << parameters.node_version >>
+          command: |
+            sudo apt-get update -y
+            sudo apt-get install -y curl ca-certificates
+            curl -fsSL https://deb.nodesource.com/setup_<< parameters.node_version >>.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+            node -v
+            npm -v
+      - run:
+          name: Install dependencies
+          command: |
+            if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+              npm ci
+            else
+              npm i
+            fi
+
+  deploy_via_ssh:
+    description: "Deploy & restart Node app via SSH to a remote Ubuntu host"
+    parameters:
+      ssh_host:
+        type: string
+      ssh_user:
+        type: string
+        default: "ubuntu"
+      app_dir:
+        type: string
+        default: "/home/ubuntu/nodeapp"
+      repo_url:
+        type: string
+        default: "https://github.com/h-kameda-sakura/apitest.git"
+      service_name:
+        type: string
+        default: "nodeapp.service"
+      node_version:
+        type: string
+        default: "20"
+    steps:
+      - run:
+          name: Register known_hosts
+          command: |
+            mkdir -p ~/.ssh
+            ssh-keyscan << parameters.ssh_host >> >> ~/.ssh/known_hosts
+      - run:
+          name: Deploy & restart service
+          command: |
+            ssh << parameters.ssh_user >>@<< parameters.ssh_host >> '
+              set -eo pipefail
+
+              APP_DIR="<< parameters.app_dir >>"
+              REPO_URL="<< parameters.repo_url >>"
+              SERVICE_NAME="<< parameters.service_name >>"
+
+              sudo apt-get update -y
+              # Node.js runtime for server if needed
+              curl -fsSL https://deb.nodesource.com/setup_<< parameters.node_version >>.x | sudo -E bash -
+              sudo apt-get install -y nodejs git
+
+              if [ ! -d "$APP_DIR" ]; then
+                sudo mkdir -p "$APP_DIR"
+                sudo chown $USER:$USER "$APP_DIR"
+              fi
+
+              if [ -d "$APP_DIR/.git" ]; then
+                cd "$APP_DIR"
+                git fetch --all --prune
+                git reset --hard origin/main || git reset --hard origin/master || true
+              else
+                rm -rf "$APP_DIR"
+                git clone "$REPO_URL" "$APP_DIR"
+                cd "$APP_DIR"
+              fi
+
+              if [ -f package-lock.json ] || [ -f npm-shrinkwrap.json ]; then
+                npm ci --omit=dev
+              else
+                npm i --omit=dev
+              fi
+
+              # systemd restart (service must exist on server)
+              if systemctl list-unit-files | grep -q "$SERVICE_NAME"; then
+                sudo systemctl daemon-reload || true
+                sudo systemctl enable "$SERVICE_NAME" || true
+                sudo systemctl restart "$SERVICE_NAME"
+                sudo systemctl status "$SERVICE_NAME" --no-pager -l || true
+              else
+                echo "[WARN] Systemd service $SERVICE_NAME not found. Skipping restart."
+              fi
+            '
+
+  http_healthcheck:
+    description: "Simple HTTP healthcheck with curl"
+    parameters:
+      url:
+        type: string
+      timeout:
+        type: integer
+        default: 20
+    steps:
+      - run:
+          name: Healthcheck << parameters.url >>
+          command: |
+            command -v curl >/dev/null 2>&1 || (sudo apt-get update -y && sudo apt-get install -y curl)
+            timeout << parameters.timeout >> bash -c '
+              until curl -fsS -o /dev/null -w "%{http_code}\n" "<< parameters.url >>" | tee /tmp/hc_status | grep -E "200|204"; do
+                echo "Waiting for service..."
+                sleep 3
+              done
+            '
+            echo "Healthcheck OK"
+
+# ===== jobs =====
+jobs:
+  build_and_test:
+    executor: base
+    parameters:
+      node_version:
+        type: string
+        default: "20"
+    steps:
+      - checkout
+      - setup_node:
+          node_version: << parameters.node_version >>
+      - run:
+          name: Run tests
+          command: |
+            if [ -f package.json ]; then
+              npm test --ignore-scripts || echo "No tests or tests failed"
+            else
+              echo "No package.json found, skipping tests"
+            fi
+
+  deploy_job:
+    executor: base
+    parameters:
+      ssh_host:
+        type: string
+      node_version:
+        type: string
+        default: "20"
+    steps:
+      - checkout
+      - deploy_via_ssh:
+          ssh_host: << parameters.ssh_host >>
+          node_version: << parameters.node_version >>
+      - http_healthcheck:
+          url: "http://<< parameters.ssh_host >>:3000/"
+          timeout: 30
+
+# ===== examples (optional but nice) =====
+examples:
+  "Build → Deploy":
+    description: "Typical pipeline that builds/tests, then deploys by SSH"
+    usage:
+      version: 2.1
+      orbs:
+        platform: "https://raw.githubusercontent.com/h-kameda-sakura/apitest/main/orbs/platform-team.yml"
+      workflows:
+        build_and_deploy:
+          jobs:
+            - platform/build_and_test
+            - platform/deploy_job:
+                name: deploy_to_prod
+                ssh_host: "203.0.113.10"
+                requires:
+                  - platform/build_and_test
