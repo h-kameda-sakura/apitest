@@ -3,7 +3,7 @@ version: 2.1
 
 orbs:
   # URL Orb を生(なま)で参照します（ブランチ名は main を想定）
-  greeting: https://raw.githubusercontent.com/h-kameda-sakura/apitest/main/orbs/greeting.yml
+  greeting: https://raw.githubusercontent.com/h-kameda-sakura/orb/main/orbs/greeting.yml
 
 jobs:
   demo:
